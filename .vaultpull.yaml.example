@@ -1,0 +1,31 @@
+# vaultpull example configuration file
+# Copy this to .vaultpull.yaml and customise for your project.
+# Never commit .vaultpull.yaml — it is listed in .gitignore.
+
+profiles:
+
+  # Default profile used when --profile flag is omitted
+  default:
+    vault_addr: "http://127.0.0.1:8200"   # Vault server address
+    vault_token: "root"                    # Token (prefer VAULT_TOKEN env var)
+    mount_path: "secret"                   # KV mount path
+    secret_path: "myapp/prod"              # Path within the mount
+    output_file: ".env"                    # Destination .env file
+    mapping:                               # ENV_VAR_NAME: vault-key
+      DB_HOST: db_host
+      DB_PORT: db_port
+      DB_PASSWORD: db_password
+      API_KEY: api_key
+      JWT_SECRET: jwt_secret
+
+  # Staging environment profile
+  staging:
+    vault_addr: "https://vault.staging.example.com"
+    vault_token: ""                        # Leave empty; set VAULT_TOKEN instead
+    mount_path: "secret"
+    secret_path: "myapp/staging"
+    output_file: ".env.staging"
+    mapping:
+      DB_HOST: db_host
+      DB_PASSWORD: db_password
+      API_KEY: api_key
