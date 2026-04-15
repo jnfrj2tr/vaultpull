@@ -15,7 +15,7 @@ type Entry struct {
 
 // Parse reads a .env file and returns a slice of Entries.
 // Lines starting with '#' are treated as comments and skipped.
-// Lines without '=' are skipped with a warning-friendly error.
+// Empty lines are skipped. Lines without '=' are treated as errors.
 func Parse(path string) ([]Entry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -56,6 +56,16 @@ func Parse(path string) ([]Entry, error) {
 	}
 
 	return entries, nil
+}
+
+// ToMap converts a slice of Entries into a map of key-value pairs.
+// If duplicate keys are present, the last value wins.
+func ToMap(entries []Entry) map[string]string {
+	m := make(map[string]string, len(entries))
+	for _, e := range entries {
+		m[e.Key] = e.Value
+	}
+	return m
 }
 
 // stripQuotes removes surrounding single or double quotes from a value.
