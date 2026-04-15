@@ -2,18 +2,24 @@ package cmd
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 
-	"vaultpull/internal/config"
-	"vaultpull/internal/env"
-	"vaultpull/internal/vault"
+	"github.com/yourusername/vaultpull/internal/audit"
+	"github.com/yourusername/vaultpull/internal/config"
+	"github.com/yourusername/vaultpull/internal/diff"
+	"github.com/yourusername/vaultpull/internal/env"
+	"github.com/yourusername/vaultpull/internal/profile"
+	"github.com/yourusername/vaultpull/internal/prompt"
+	"github.com/yourusername/vaultpull/internal/vault"
 )
 
 var (
-	profileFlag string
-	mergeFlag   bool
+	flagProfile  string
+	flagForce    bool
+	flagDryRun   bool
+	flagAuditLog string
 )
 
 var syncCmd = &cobra.Command{
@@ -23,45 +29,75 @@ var syncCmd = &cobra.Command{
 }
 
 func init() {
-	syncCmd.Flags().StringVarP(&profileFlag, "profile", "p", "default", "Config profile to use")
-	syncCmd.Flags().BoolVarP(&mergeFlag, "merge", "m", false, "Merge with existing .env instead of overwriting")
-	RootCmd.AddCommand(syncCmd)
+	syncCmd.Flags().StringVarP(&flagProfile, "profile", "p", "", "profile name to sync")
+	syncCmd.Flags().BoolVar(&flagForce, "force", false, "overwrite without prompting")
+	syncCmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "preview changes without writing")
+	syncCmd.Flags().StringVar(&flagAuditLog, "audit-log", "", "path to append audit entries")
+	rootCmd.AddCommand(syncCmd)
 }
 
-func runSync(cmd *cobra.Command, args []string) error {
+func runSync(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load("")
 	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+		return fmt.Errorf("load config: %w", err)
 	}
 
-	profile, err := cfg.GetProfile(profileFlag)
+	prof, err := profile.Select(cfg, flagProfile)
 	if err != nil {
-		return fmt.Errorf("profile %q not found: %w", profileFlag, err)
+		return fmt.Errorf("select profile: %w", err)
 	}
 
-	client, err := vault.NewClient(cfg.VaultAddr, cfg.Token)
+	p, err := profile.Resolve(cfg, prof)
 	if err != nil {
-		return fmt.Errorf("creating vault client: %w", err)
+		return fmt.Errorf("resolve profile: %w", err)
 	}
 
-	secrets, err := client.GetSecrets(profile.SecretPath)
+	client, err := vault.NewClient(cfg.Vault.Address, cfg.Vault.Token)
 	if err != nil {
-		return fmt.Errorf("fetching secrets from %q: %w", profile.SecretPath, err)
+		return fmt.Errorf("vault client: %w", err)
 	}
 
-	output := secrets
-	if mergeFlag {
-		output, err = env.Merge(profile.EnvFile, secrets)
+	incoming, err := client.GetSecrets(p.VaultPath)
+	if err != nil {
+		return fmt.Errorf("fetch secrets: %w", err)
+	}
+
+	changes := diff.Compare(p.OutputFile, incoming)
+	diff.Print(cmd.OutOrStdout(), changes)
+
+	if flagDryRun {
+		fmt.Fprintln(cmd.OutOrStdout(), "dry-run: no changes written")
+		return nil
+	}
+
+	if len(changes) > 0 && !flagForce {
+		var confirmer prompt.Confirmer = prompt.New()
+		ok, err := confirmer.Ask(fmt.Sprintf("Write changes to %s?", p.OutputFile))
 		if err != nil {
-			return fmt.Errorf("merging env file: %w", err)
+			return fmt.Errorf("prompt: %w", err)
+		}
+		if !ok {
+			fmt.Fprintln(cmd.OutOrStdout(), "aborted")
+			return nil
 		}
 	}
 
-	writer := env.NewWriter(profile.EnvFile)
-	if err := writer.Write(output); err != nil {
-		return fmt.Errorf("writing env file: %w", err)
+	w := env.NewWriter(p.OutputFile)
+	if err := w.Write(incoming); err != nil {
+		return fmt.Errorf("write env: %w", err)
 	}
 
-	log.Printf("Synced %d secret(s) to %s (profile: %s)\n", len(secrets), profile.EnvFile, profileFlag)
+	if flagAuditLog != "" {
+		logger, err := audit.NewLogger(flagAuditLog)
+		if err != nil {
+			return fmt.Errorf("audit logger: %w", err)
+		}
+		for _, c := range changes {
+			_ = logger.Record(prof, c.Key, c.Type)
+		}
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "synced %d secret(s) → %s\n", len(incoming), p.OutputFile)
+	os.Exit(0)
 	return nil
 }
