@@ -88,16 +88,26 @@ func runSync(cmd *cobra.Command, _ []string) error {
 	}
 
 	if flagAuditLog != "" {
-		logger, err := audit.NewLogger(flagAuditLog)
-		if err != nil {
-			return fmt.Errorf("audit logger: %w", err)
-		}
-		for _, c := range changes {
-			_ = logger.Record(prof, c.Key, c.Type)
+		if err := recordAudit(flagAuditLog, prof, changes); err != nil {
+			return fmt.Errorf("audit log: %w", err)
 		}
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "synced %d secret(s) → %s\n", len(incoming), p.OutputFile)
 	os.Exit(0)
+	return nil
+}
+
+// recordAudit opens the audit log at path and records an entry for each changed key.
+func recordAudit(path, prof string, changes []diff.Change) error {
+	logger, err := audit.NewLogger(path)
+	if err != nil {
+		return err
+	}
+	for _, c := range changes {
+		if err := logger.Record(prof, c.Key, c.Type); err != nil {
+			return fmt.Errorf("record key %q: %w", c.Key, err)
+		}
+	}
 	return nil
 }
