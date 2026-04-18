@@ -1,37 +1,50 @@
 package snapshot
 
-// DriftResult holds the outcome of comparing a snapshot to current secrets.
+import "fmt"
+
+// DriftResult describes a single detected drift between snapshot and live secrets.
 type DriftResult struct {
-	Added   map[string]string
-	Removed map[string]string
-	Changed map[string]string // key -> new value
-	Clean   bool
+	Key    string
+	Status string // "added", "removed", "changed"
 }
 
-// DetectDrift compares a saved snapshot against the current secrets map.
-// Returns nil if snap is nil (no previous snapshot to compare).
-func DetectDrift(snap *Snapshot, current map[string]string) *DriftResult {
+// DetectDrift compares a saved snapshot against the current live secrets map.
+// Returns nil if snap is nil (no baseline to compare against).
+func DetectDrift(snap *Snapshot, live map[string]string) []DriftResult {
 	if snap == nil {
 		return nil
 	}
-	result := &DriftResult{
-		Added:   make(map[string]string),
-		Removed: make(map[string]string),
-		Changed: make(map[string]string),
-	}
-	for k, v := range current {
-		old, exists := snap.Secrets[k]
-		if !exists {
-			result.Added[k] = v
-		} else if old != v {
-			result.Changed[k] = v
+
+	var results []DriftResult
+
+	// Keys removed or changed
+	for k, snapVal := range snap.Secrets {
+		liveVal, ok := live[k]
+		if !ok {
+			results = append(results, DriftResult{Key: k, Status: "removed"})
+		} else if liveVal != snapVal {
+			results = append(results, DriftResult{Key: k, Status: "changed"})
 		}
 	}
-	for k, v := range snap.Secrets {
-		if _, exists := current[k]; !exists {
-			result.Removed[k] = v
+
+	// Keys added
+	for k := range live {
+		if _, ok := snap.Secrets[k]; !ok {
+			results = append(results, DriftResult{Key: k, Status: "added"})
 		}
 	}
-	result.Clean = len(result.Added) == 0 && len(result.Removed) == 0 && len(result.Changed) == 0
-	return result
+
+	return results
+}
+
+// FormatDrift returns a human-readable summary of drift results.
+func FormatDrift(results []DriftResult) string {
+	if len(results) == 0 {
+		return "no drift detected"
+	}
+	var out string
+	for _, r := range results {
+		out += fmt.Sprintf("  [%s] %s\n", r.Status, r.Key)
+	}
+	return out
 }
