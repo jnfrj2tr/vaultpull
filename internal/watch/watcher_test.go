@@ -11,12 +11,19 @@ import (
 	"github.com/yourusername/vaultpull/internal/watch"
 )
 
-func TestRun_CallsHandlerOnWrite(t *testing.T) {
+// createTempFile creates a temporary file with the given content and returns its path.
+func createTempFile(t *testing.T, content string) string {
+	t.Helper()
 	tmp := t.TempDir()
 	file := filepath.Join(tmp, ".vaultpull.yaml")
-	if err := os.WriteFile(file, []byte("initial"), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	return file
+}
+
+func TestRun_CallsHandlerOnWrite(t *testing.T) {
+	file := createTempFile(t, "initial")
 
 	var called atomic.Int32
 	h := func() error {
@@ -44,11 +51,7 @@ func TestRun_CallsHandlerOnWrite(t *testing.T) {
 }
 
 func TestRun_CancelStopsWatcher(t *testing.T) {
-	tmp := t.TempDir()
-	file := filepath.Join(tmp, ".vaultpull.yaml")
-	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	file := createTempFile(t, "x")
 
 	w := watch.New(file, 50*time.Millisecond, func() error { return nil })
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
