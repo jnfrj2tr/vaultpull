@@ -41,6 +41,17 @@ func TestIsDue_ZeroInterval(t *testing.T) {
 	}
 }
 
+// TestIsDue_ExactlyDue checks the boundary condition where elapsed time equals the interval.
+func TestIsDue_ExactlyDue(t *testing.T) {
+	s := &rotate.Schedule{
+		Interval:    time.Hour,
+		LastRotated: time.Now().Add(-1 * time.Hour),
+	}
+	if !s.IsDue() {
+		t.Error("expected IsDue=true when exactly one interval has elapsed")
+	}
+}
+
 func TestParseInterval_Valid(t *testing.T) {
 	d, err := rotate.ParseInterval("12h")
 	if err != nil {
