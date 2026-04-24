@@ -42,9 +42,16 @@ func runLint(cmd *cobra.Command, _ []string) error {
 	}
 
 	if lint.HasErrors(issues) {
-		fmt.Fprintln(os.Stderr, "lint failed: fix errors before syncing")
-		os.Exit(1)
+		return exitWithLintError(cmd)
 	}
 
 	return nil
+}
+
+// exitWithLintError prints a summary message to stderr and exits with a
+// non-zero status code to signal lint failure to the calling process.
+func exitWithLintError(cmd *cobra.Command) error {
+	fmt.Fprintln(os.Stderr, "lint failed: fix errors before syncing")
+	os.Exit(1)
+	return nil // unreachable, but satisfies the error return type
 }
