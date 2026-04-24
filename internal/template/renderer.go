@@ -38,14 +38,14 @@ func New(secrets map[string]string) *Renderer {
 func (r *Renderer) RenderFile(srcPath, dstPath string) error {
 	src, err := os.ReadFile(srcPath)
 	if err != nil {
-		return fmt.Errorf("template: read source: %w", err)
+		return fmt.Errorf("template: read source %q: %w", srcPath, err)
 	}
 	out, err := r.RenderString(string(src))
 	if err != nil {
 		return err
 	}
 	if err := os.WriteFile(dstPath, []byte(out), 0600); err != nil {
-		return fmt.Errorf("template: write destination: %w", err)
+		return fmt.Errorf("template: write destination %q: %w", dstPath, err)
 	}
 	return nil
 }
