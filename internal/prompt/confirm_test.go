@@ -65,6 +65,17 @@ func TestAsk_PrintsQuestion(t *testing.T) {
 	}
 }
 
+// TestAsk_PrintsPromptSuffix verifies that the output includes the expected
+// "[y/N]" hint so users know what input is accepted.
+func TestAsk_PrintsPromptSuffix(t *testing.T) {
+	out := &bytes.Buffer{}
+	term := &prompt.Terminal{In: strings.NewReader("n\n"), Out: out}
+	_, _ = term.Ask("Delete all?")
+	if !strings.Contains(out.String(), "[y/N]") {
+		t.Errorf("output %q does not contain '[y/N]' hint", out.String())
+	}
+}
+
 func TestSkipConfirmer_AlwaysTrue(t *testing.T) {
 	s := prompt.SkipConfirmer{}
 	ok, err := s.Ask("anything")
