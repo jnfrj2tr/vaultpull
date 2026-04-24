@@ -49,3 +49,24 @@ func (l *Logger) Record(e Entry) error {
 	}
 	return nil
 }
+
+// ReadAll reads and returns all audit log entries from the log file.
+// It returns an error if the file cannot be opened or if any line
+// contains malformed JSON.
+func (l *Logger) ReadAll() ([]Entry, error) {
+	data, err := os.ReadFile(l.path)
+	if err != nil {
+		return nil, fmt.Errorf("audit: read log file: %w", err)
+	}
+
+	var entries []Entry
+	decoder := json.NewDecoder(bytesReader(data))
+	for decoder.More() {
+		var e Entry
+		if err := decoder.Decode(&e); err != nil {
+			return nil, fmt.Errorf("audit: decode entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
