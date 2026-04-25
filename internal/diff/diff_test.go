@@ -61,8 +61,8 @@ func TestCompare_MixedChanges(t *testing.T) {
 		"CHANGE": "old",
 	}
 	incoming := map[string]string{
-		"KEEP":   "same",
-		"CHANGE": "new",
+		"KEEP":    "same",
+		"CHANGE":  "new",
 		"NEW_KEY": "value",
 	}
 
@@ -90,5 +90,19 @@ func TestCompare_EmptyIncoming(t *testing.T) {
 	}
 	if result.HasChanges() {
 		t.Error("expected no changes")
+	}
+}
+
+func TestCompare_BothEmpty(t *testing.T) {
+	existing := map[string]string{}
+	incoming := map[string]string{}
+
+	result := diff.Compare(existing, incoming)
+
+	if len(result.Changes) != 0 {
+		t.Errorf("expected 0 changes, got %d", len(result.Changes))
+	}
+	if result.HasChanges() {
+		t.Error("expected no changes when both maps are empty")
 	}
 }
