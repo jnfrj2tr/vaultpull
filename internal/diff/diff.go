@@ -35,6 +35,11 @@ func (r *Result) Updated() []Change {
 	return r.filter(Updated)
 }
 
+// Unchanged returns only the unchanged changes.
+func (r *Result) Unchanged() []Change {
+	return r.filter(Unchanged)
+}
+
 // HasChanges reports whether any keys were added or updated.
 func (r *Result) HasChanges() bool {
 	for _, c := range r.Changes {
@@ -43,6 +48,21 @@ func (r *Result) HasChanges() bool {
 		}
 	}
 	return false
+}
+
+// Summary returns a count of added, updated, and unchanged keys.
+func (r *Result) Summary() (added, updated, unchanged int) {
+	for _, c := range r.Changes {
+		switch c.Kind {
+		case Added:
+			added++
+		case Updated:
+			updated++
+		case Unchanged:
+			unchanged++
+		}
+	}
+	return
 }
 
 func (r *Result) filter(kind ChangeKind) []Change {
