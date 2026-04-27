@@ -39,9 +39,11 @@ profiles:
   production:
     addr: https://vault.example.com
     path: secret/myapp/prod
+    token: s.xxxxxxxxxxxxxxxx  # optional; falls back to VAULT_TOKEN
   staging:
     addr: https://vault.example.com
     path: secret/myapp/staging
+    token: s.yyyyyyyyyyyyyyyy
 ```
 
 ---
@@ -54,6 +56,18 @@ profiles:
 | `--out` | Output `.env` file path (default: `.env`) |
 | `--profile` | Named profile from config file |
 | `--overwrite` | Overwrite existing values in the output file |
+| `--dry-run` | Print secrets to stdout instead of writing to file |
+
+---
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `VAULT_ADDR` | Address of the Vault server |
+| `VAULT_TOKEN` | Authentication token for Vault |
+
+Values set in a profile take precedence over environment variables.
 
 ---
 
